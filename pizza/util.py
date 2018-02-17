@@ -21,7 +21,7 @@ def load_file(filename):
     return result
 
 def export(name, data) :
-    timestamp = datetime.datetime.now().strftime("%Y%M%d-%H%M")
+    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M")
     output_dir = './output/'
     filename = timestamp + '_' + name + '_output_pizza.txt'
 
