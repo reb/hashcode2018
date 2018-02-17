@@ -4,6 +4,7 @@ DEBUG = False
 
 def solve(problem):
     slices = []
+    overlap_grid = create_overlap_grid(problem, slices)
 
     r1 = 0
     r2 = problem['minimum_ingredient']-1
@@ -15,8 +16,9 @@ def solve(problem):
             potential_slice = [r1, c1, r2, c2]
             if DEBUG:
                 print("trying potential slice: {}".format(potential_slice)) 
-            if valid_slice(problem, slices, potential_slice):
+            if valid_slice(problem, overlap_grid, potential_slice):
                 slices.append(potential_slice)
+                overlap_grid = create_overlap_grid(problem, slices)
                 c1 += 2
                 c2 += 2
                 continue
@@ -37,8 +39,9 @@ def solve(problem):
             potential_slice = [r1, c1, r2, c2]
             if DEBUG:
                 print("trying potential slice: {}".format(potential_slice))
-            if valid_slice(problem, slices, potential_slice):
+            if valid_slice(problem, overlap_grid, potential_slice):
                 slices.append(potential_slice)
+                overlap_grid = create_overlap_grid(problem, slices)
                 r1 += 2
                 r2 += 2
                 continue
@@ -52,12 +55,8 @@ def solve(problem):
 
     return slices
 
-def valid_slice(problem, slices, slice_rectangle):
-    r1 = slice_rectangle[0]
-    c1 = slice_rectangle[1]
-    r2 = slice_rectangle[2]
-    c2 = slice_rectangle[3]
-
+def valid_slice(problem, overlap_grid, slice_rectangle):
+    [r1, c1, r2, c2] = slice_rectangle
 
     tomatoes = 0
     mushrooms = 0
@@ -79,7 +78,7 @@ def valid_slice(problem, slices, slice_rectangle):
         print("slice not too big: {}".format(slice_not_too_big))
 
     if enough_tomatoes and enough_mushrooms and slice_not_too_big:
-        does_not_overlap = not does_overlap(slices, slice_rectangle)
+        does_not_overlap = not does_overlap(overlap_grid, slice_rectangle)
         if DEBUG:
             print("does not overlap: {}".format(does_not_overlap))
         if does_not_overlap:
@@ -87,22 +86,30 @@ def valid_slice(problem, slices, slice_rectangle):
 
     return False
 
+def create_overlap_grid(problem, slices):
+    grid  = [[False for c in range(problem['columns'])] for r in range(problem['rows'])]
 
-def does_overlap(current_slices, potential_slice) :
-    for slice in current_slices:
+    for slice in slices:
         [r1, c1, r2, c2] = slice
-        [pot_r1, pot_c1, pot_r2, pot_c2] = potential_slice
+        for r in range(r1, r2+1):
+            for c in range(c1, c2+1):
+                grid[r][c] = True
+                if DEBUG:
+                    print("Filling overlap grid for r: {}, c: {}".format(r, c))
 
-        does_overlaps_in_row = (pot_r1 >= r1 and pot_r1 <= r2) or (pot_r2 >= r1 and pot_r2 <= r2)
-        does_overlaps_in_column = (pot_c1 >= c1 and pot_c1 <= c2) or (pot_c2 >= c1 and pot_c2 <= c2)
-        
-        if DEBUG:
-            print("Checking overlap with {} and {}".format(slice, potential_slice))
-            print("overlaps in row: {}, overlaps in column: {}".format(does_overlaps_in_row, does_overlaps_in_column))
-        if does_overlaps_in_row and does_overlaps_in_column:
-            return True
+    return grid
+
+def does_overlap(overlap_grid, potential_slice):
+    [r1, c1, r2, c2] = potential_slice
+    if DEBUG:
+        print(overlap_grid)
+
+    for r in range(r1, r2+1):
+        for c in range(c1, c2+1):
+            if overlap_grid[r][c] == True:
+                return True
+
     return False
-
 
 def load_file(filename):
     result = {}
