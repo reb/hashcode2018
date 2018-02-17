@@ -18,7 +18,7 @@ def solve(problem):
                 print("trying potential slice: {}".format(potential_slice)) 
             if valid_slice(problem, overlap_grid, potential_slice):
                 slices.append(potential_slice)
-                overlap_grid = update_overlap_grid(problem, overlap_grid, potential_slice)
+                overlap_grid = update_grid(problem, overlap_grid, potential_slice)
                 c1 += 2
                 c2 += 2
                 continue
@@ -41,7 +41,7 @@ def solve(problem):
                 print("trying potential slice: {}".format(potential_slice))
             if valid_slice(problem, overlap_grid, potential_slice):
                 slices.append(potential_slice)
-                overlap_grid = update_overlap_grid(problem, overlap_grid, potential_slice)
+                overlap_grid = update_grid(problem, overlap_grid, potential_slice)
                 r1 += 2
                 r2 += 2
                 continue
@@ -52,8 +52,47 @@ def solve(problem):
         c1 += problem['minimum_ingredient']
         c2 += problem['minimum_ingredient']
 
+    return optimize_slices(problem, overlap_grid, slices)
 
-    return slices
+
+def optimize_slices(problem, overlap_grid, slices):
+    optimized_slices = []
+    
+    for slice in slices:
+        # remove from grid
+        overlap_grid = update_grid(problem, overlap_grid, slice, value_to_set = False)
+
+        if DEBUG:
+            print("Optimizing {}".format(slice))
+        
+        [r1, c1, r2, c2] = slice
+        
+        changed = False
+
+        while True:
+            if r1 > 0 and valid_slice(problem, overlap_grid, [r1-1, c1, r2, c2]):
+                r1 -= 1
+            if r2 < problem['rows'] - 1 and valid_slice(problem, overlap_grid, [r1, c1, r2+1, c2]):
+                r2 += 1
+            if c1 > 0 and valid_slice(problem, overlap_grid, [r1, c1-1, r2, c2]):
+                c1 -= 1
+            if c2 < problem['columns'] - 1 and valid_slice(problem, overlap_grid, [r1, c1, r2, c2+1]):
+                c2 += 1
+
+            if slice == [r1, c1, r2, c2]:
+                break
+            
+            slice = [r1, c1, r2, c2]
+
+        if DEBUG:
+            print("Optimized to {}".format(slice))
+
+        # add to result and grid
+        optimized_slices.append(slice)
+        overlap_grid = update_grid(problem, overlap_grid, slice)
+
+    return optimized_slices
+
 
 def valid_slice(problem, overlap_grid, slice_rectangle):
     [r1, c1, r2, c2] = slice_rectangle
@@ -86,11 +125,11 @@ def valid_slice(problem, overlap_grid, slice_rectangle):
 
     return False
 
-def update_overlap_grid(problem, grid, slice):
+def update_grid(problem, grid, slice, value_to_set = True):
     [r1, c1, r2, c2] = slice
     for r in range(r1, r2+1):
         for c in range(c1, c2+1):
-            grid[r][c] = True
+            grid[r][c] = value_to_set
             if DEBUG:
                 print("Filling overlap grid for r: {}, c: {}".format(r, c))
 
