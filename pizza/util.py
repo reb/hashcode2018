@@ -37,3 +37,7 @@ def format(row) :
     for element in row:
         line += str(element) + ' '
     return line + '\n'
+
+def points(slices) :
+    return sum(list(map(lambda slice: len(slice), slices)))
+
