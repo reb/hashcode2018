@@ -1,5 +1,7 @@
 import datetime
 
+DEBUG = False
+
 def solve(problem):
     slices = []
 
@@ -11,9 +13,10 @@ def solve(problem):
         c2 = 1
         while (c2 < problem['columns']):
             potential_slice = [r1, c1, r2, c2]
-            #print("trying potential slice: {}".format(potential_slice))
+            if DEBUG:
+                print("trying potential slice: {}".format(potential_slice)) 
             if valid_slice(problem, slices, potential_slice):
-                result.append(potential_slice)
+                slices.append(potential_slice)
                 c1 += 2
                 c2 += 2
                 continue
@@ -32,9 +35,10 @@ def solve(problem):
         r2 = 1
         while (r2 < problem['rows']):
             potential_slice = [r1, c1, r2, c2]
-            #print("trying potential slice: {}".format(potential_slice))
+            if DEBUG:
+                print("trying potential slice: {}".format(potential_slice))
             if valid_slice(problem, slices, potential_slice):
-                result.append(potential_slice)
+                slices.append(potential_slice)
                 r1 += 2
                 r2 += 2
                 continue
@@ -46,9 +50,9 @@ def solve(problem):
         c2 += problem['minimum_ingredient']
 
 
-    return result
+    return slices
 
-def valid_slice(problem, slice_rectangle):
+def valid_slice(problem, slices, slice_rectangle):
     r1 = slice_rectangle[0]
     c1 = slice_rectangle[1]
     r2 = slice_rectangle[2]
@@ -67,29 +71,37 @@ def valid_slice(problem, slice_rectangle):
     enough_tomatoes = tomatoes >= problem['minimum_ingredient']
     enough_mushrooms = mushrooms >= problem['minimum_ingredient']
     slice_not_too_big = (tomatoes + mushrooms) <= problem['max_cells']
-    does_not_overlap = !does_overlap(slices, slice_rectangle)
+    
+    if DEBUG:
+        print("found {} tomatoes and {} mushrooms".format(tomatoes, mushrooms))
+        print("enough tomatoes: {}".format(enough_tomatoes))
+        print("enough mushrooms: {}".format(enough_mushrooms))
+        print("slice not too big: {}".format(slice_not_too_big))
 
-    #print("found {} tomatoes and {} mushrooms".format(tomatoes, mushrooms))
-    #print("enough tomatoes: {}".format(enough_tomatoes))
-    #print("enough mushrooms: {}".format(enough_mushrooms))
-    #print("slice not too big: {}".format(slice_not_too_big))
-
-    if enough_tomatoes and enough_mushrooms and slice_not_too_big and does_not_overlap:
-        return True
+    if enough_tomatoes and enough_mushrooms and slice_not_too_big:
+        does_not_overlap = not does_overlap(slices, slice_rectangle)
+        if DEBUG:
+            print("does not overlap: {}".format(does_not_overlap))
+        if does_not_overlap:
+            return True
 
     return False
 
 
 def does_overlap(current_slices, potential_slice) :
     for slice in current_slices:
-        r1, c1, r2, c2 = get_coordinates(slice)
-        pot_r1, pot_c1, pot_r2, pot_c2 = get_coordinates(potential_slice)
-        does_overlaps_in_row = pot_r1 >= r1 and pot_r2 <= r2
-        does_overlaps_in_column = pot_c1 >= c1 and pot_c2 <= c2
-        return does_overlaps_in_row or does_overlaps_in_column
+        [r1, c1, r2, c2] = slice
+        [pot_r1, pot_c1, pot_r2, pot_c2] = potential_slice
 
-def get_coordinates(slice) :
-    return slice[0], slice[1], slice[2], slice[3]
+        does_overlaps_in_row = (pot_r1 >= r1 and pot_r1 <= r2) or (pot_r2 >= r1 and pot_r2 <= r2)
+        does_overlaps_in_column = (pot_c1 >= c1 and pot_c1 <= c2) or (pot_c2 >= c1 and pot_c2 <= c2)
+        
+        if DEBUG:
+            print("Checking overlap with {} and {}".format(slice, potential_slice))
+            print("overlaps in row: {}, overlaps in column: {}".format(does_overlaps_in_row, does_overlaps_in_column))
+        if does_overlaps_in_row and does_overlaps_in_column:
+            return True
+    return False
 
 
 def load_file(filename):
@@ -134,8 +146,10 @@ def points(slices) :
     return sum(list(map(lambda slice: len(slice), slices)))
 
 if __name__ == "__main__":
-    datasets = ['example', 'small', 'medium', 'big']
-    #datasets = ['example']
+    if DEBUG:
+        datasets = ['example']
+    else:
+        datasets = ['example', 'small', 'medium', 'big']
 
     for dataset in datasets:
         
