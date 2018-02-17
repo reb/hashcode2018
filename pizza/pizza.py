@@ -4,7 +4,7 @@ DEBUG = False
 
 def solve(problem):
     slices = []
-    overlap_grid = create_overlap_grid(problem, slices)
+    overlap_grid  = [[False for c in range(problem['columns'])] for r in range(problem['rows'])]
 
     r1 = 0
     r2 = problem['minimum_ingredient']-1
@@ -18,7 +18,7 @@ def solve(problem):
                 print("trying potential slice: {}".format(potential_slice)) 
             if valid_slice(problem, overlap_grid, potential_slice):
                 slices.append(potential_slice)
-                overlap_grid = create_overlap_grid(problem, slices)
+                overlap_grid = update_overlap_grid(problem, overlap_grid, potential_slice)
                 c1 += 2
                 c2 += 2
                 continue
@@ -41,7 +41,7 @@ def solve(problem):
                 print("trying potential slice: {}".format(potential_slice))
             if valid_slice(problem, overlap_grid, potential_slice):
                 slices.append(potential_slice)
-                overlap_grid = create_overlap_grid(problem, slices)
+                overlap_grid = update_overlap_grid(problem, overlap_grid, potential_slice)
                 r1 += 2
                 r2 += 2
                 continue
@@ -86,16 +86,13 @@ def valid_slice(problem, overlap_grid, slice_rectangle):
 
     return False
 
-def create_overlap_grid(problem, slices):
-    grid  = [[False for c in range(problem['columns'])] for r in range(problem['rows'])]
-
-    for slice in slices:
-        [r1, c1, r2, c2] = slice
-        for r in range(r1, r2+1):
-            for c in range(c1, c2+1):
-                grid[r][c] = True
-                if DEBUG:
-                    print("Filling overlap grid for r: {}, c: {}".format(r, c))
+def update_overlap_grid(problem, grid, slice):
+    [r1, c1, r2, c2] = slice
+    for r in range(r1, r2+1):
+        for c in range(c1, c2+1):
+            grid[r][c] = True
+            if DEBUG:
+                print("Filling overlap grid for r: {}, c: {}".format(r, c))
 
     return grid
 
