@@ -1,7 +1,7 @@
 import datetime
 
 def solve(problem):
-    result = []
+    slices = []
 
     r1 = 0
     r2 = problem['minimum_ingredient']-1
@@ -12,7 +12,7 @@ def solve(problem):
         while (c2 < problem['columns']):
             potential_slice = [r1, c1, r2, c2]
             #print("trying potential slice: {}".format(potential_slice))
-            if valid_slice(problem, potential_slice):
+            if valid_slice(problem, slices, potential_slice):
                 result.append(potential_slice)
                 c1 += 2
                 c2 += 2
@@ -23,6 +23,27 @@ def solve(problem):
 
         r1 += problem['minimum_ingredient']
         r2 += problem['minimum_ingredient']
+
+    c1 = 0
+    c2 = problem['minimum_ingredient']-1
+
+    while (c2 < problem['columns']):
+        r1 = 0
+        r2 = 1
+        while (r2 < problem['rows']):
+            potential_slice = [r1, c1, r2, c2]
+            #print("trying potential slice: {}".format(potential_slice))
+            if valid_slice(problem, slices, potential_slice):
+                result.append(potential_slice)
+                r1 += 2
+                r2 += 2
+                continue
+
+            r1 +=1 
+            r2 +=1
+
+        c1 += problem['minimum_ingredient']
+        c2 += problem['minimum_ingredient']
 
 
     return result
@@ -46,13 +67,14 @@ def valid_slice(problem, slice_rectangle):
     enough_tomatoes = tomatoes >= problem['minimum_ingredient']
     enough_mushrooms = mushrooms >= problem['minimum_ingredient']
     slice_not_too_big = (tomatoes + mushrooms) <= problem['max_cells']
+    does_not_overlap = !does_overlap(slices, slice_rectangle)
 
     #print("found {} tomatoes and {} mushrooms".format(tomatoes, mushrooms))
     #print("enough tomatoes: {}".format(enough_tomatoes))
     #print("enough mushrooms: {}".format(enough_mushrooms))
     #print("slice not too big: {}".format(slice_not_too_big))
 
-    if enough_tomatoes and enough_mushrooms and slice_not_too_big:
+    if enough_tomatoes and enough_mushrooms and slice_not_too_big and does_not_overlap:
         return True
 
     return False
