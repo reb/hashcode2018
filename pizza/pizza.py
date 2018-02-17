@@ -56,7 +56,18 @@ def valid_slice(problem, slice_rectangle):
         return True
 
     return False
-            
+
+
+def does_overlap(current_slices, potential_slice) :
+    for slice in current_slices:
+        r1, c1, r2, c2 = get_coordinates(slice)
+        pot_r1, pot_c1, pot_r2, pot_c2 = get_coordinates(potential_slice)
+        does_overlaps_in_row = pot_r1 >= r1 and pot_r2 <= r2
+        does_overlaps_in_column = pot_c1 >= c1 and pot_c2 <= c2
+        return does_overlaps_in_row or does_overlaps_in_column
+
+def get_coordinates(slice) :
+    return slice[0], slice[1], slice[2], slice[3]
 
 if __name__ == "__main__":
     datasets = ['example', 'small', 'medium', 'big']
