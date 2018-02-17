@@ -20,17 +20,17 @@ def load_file(filename):
 
     return result
 
-def export(data) :
-    timetstamp = datetime.datetime.now().strftime("%Y%M%d-%H%M")
+def export(name, data) :
+    timestamp = datetime.datetime.now().strftime("%Y%M%d-%H%M")
     output_dir = './output/'
-    filename = timetstamp + '_output_pizza.txt'
+    filename = timestamp + '_' + name + '_output_pizza.txt'
 
     with open(output_dir + filename, 'w') as file:
         file.write(str(len(data)) + '\n')
         for row in data:
             file.write(format(row))
 
-        print 'file was written in directory: ' + output_dir + filename
+        print('file was written in directory: ' + output_dir + filename)
 
 def format(row) :
     line = ''
