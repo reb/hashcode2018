@@ -2,29 +2,33 @@ import datetime
 
 DEBUG = False
 
+
 def solve(problem):
+    columns = problem['columns']
+    rows = problem['rows']
+
     slices = []
-    overlap_grid  = [[False for c in range(problem['columns'])] for r in range(problem['rows'])]
+    grid = [[False for c in range(columns)] for r in range(rows)]
 
     r1 = 0
     r2 = problem['minimum_ingredient']-1
 
-    while (r2 < problem['rows']):
+    while (r2 < rows):
         c1 = 0
         c2 = 1
-        while (c2 < problem['columns']):
+        while (c2 < columns):
             potential_slice = [r1, c1, r2, c2]
             if DEBUG:
-                print("trying potential slice: {}".format(potential_slice)) 
-            if valid_slice(problem, overlap_grid, potential_slice):
+                print("trying potential slice: {}".format(potential_slice))
+            if valid_slice(problem, grid, potential_slice):
                 slices.append(potential_slice)
-                overlap_grid = update_grid(problem, overlap_grid, potential_slice)
+                grid = update_grid(problem, grid, potential_slice)
                 c1 += 2
                 c2 += 2
                 continue
 
-            c1 +=1 
-            c2 +=1
+            c1 += 1
+            c2 += 1
 
         r1 += problem['minimum_ingredient']
         r2 += problem['minimum_ingredient']
@@ -32,56 +36,56 @@ def solve(problem):
     c1 = 0
     c2 = problem['minimum_ingredient']-1
 
-    while (c2 < problem['columns']):
+    while (c2 < columns):
         r1 = 0
         r2 = 1
-        while (r2 < problem['rows']):
+        while (r2 < rows):
             potential_slice = [r1, c1, r2, c2]
             if DEBUG:
                 print("trying potential slice: {}".format(potential_slice))
-            if valid_slice(problem, overlap_grid, potential_slice):
+            if valid_slice(problem, grid, potential_slice):
                 slices.append(potential_slice)
-                overlap_grid = update_grid(problem, overlap_grid, potential_slice)
+                grid = update_grid(problem, grid, potential_slice)
                 r1 += 2
                 r2 += 2
                 continue
 
-            r1 +=1 
-            r2 +=1
+            r1 += 1
+            r2 += 1
 
         c1 += problem['minimum_ingredient']
         c2 += problem['minimum_ingredient']
 
-    return optimize_slices(problem, overlap_grid, slices)
+    return optimize_slices(problem, grid, slices)
 
 
-def optimize_slices(problem, overlap_grid, slices):
+def optimize_slices(problem, grid, slices):
     optimized_slices = []
-    
+
     for slice in slices:
         # remove from grid
-        overlap_grid = update_grid(problem, overlap_grid, slice, value_to_set = False)
+        grid = update_grid(problem, grid, slice, value_to_set=False)
 
         if DEBUG:
             print("Optimizing {}".format(slice))
-        
-        [r1, c1, r2, c2] = slice
-        
-        changed = False
 
+        [r1, c1, r2, c2] = slice
+
+        r2_max = problem['rows'] - 1
+        c2_max = problem['columns'] - 1
         while True:
-            if r1 > 0 and valid_slice(problem, overlap_grid, [r1-1, c1, r2, c2]):
+            if r1 > 0 and valid_slice(problem, grid, [r1-1, c1, r2, c2]):
                 r1 -= 1
-            if r2 < problem['rows'] - 1 and valid_slice(problem, overlap_grid, [r1, c1, r2+1, c2]):
+            if r2 < r2_max and valid_slice(problem, grid, [r1, c1, r2+1, c2]):
                 r2 += 1
-            if c1 > 0 and valid_slice(problem, overlap_grid, [r1, c1-1, r2, c2]):
+            if c1 > 0 and valid_slice(problem, grid, [r1, c1-1, r2, c2]):
                 c1 -= 1
-            if c2 < problem['columns'] - 1 and valid_slice(problem, overlap_grid, [r1, c1, r2, c2+1]):
+            if c2 < c2_max and valid_slice(problem, grid, [r1, c1, r2, c2+1]):
                 c2 += 1
 
             if slice == [r1, c1, r2, c2]:
                 break
-            
+
             slice = [r1, c1, r2, c2]
 
         if DEBUG:
@@ -89,12 +93,12 @@ def optimize_slices(problem, overlap_grid, slices):
 
         # add to result and grid
         optimized_slices.append(slice)
-        overlap_grid = update_grid(problem, overlap_grid, slice)
+        grid = update_grid(problem, grid, slice)
 
     return optimized_slices
 
 
-def valid_slice(problem, overlap_grid, slice_rectangle):
+def valid_slice(problem, grid, slice_rectangle):
     [r1, c1, r2, c2] = slice_rectangle
 
     tomatoes = 0
@@ -109,7 +113,7 @@ def valid_slice(problem, overlap_grid, slice_rectangle):
     enough_tomatoes = tomatoes >= problem['minimum_ingredient']
     enough_mushrooms = mushrooms >= problem['minimum_ingredient']
     slice_not_too_big = (tomatoes + mushrooms) <= problem['max_cells']
-    
+
     if DEBUG:
         print("found {} tomatoes and {} mushrooms".format(tomatoes, mushrooms))
         print("enough tomatoes: {}".format(enough_tomatoes))
@@ -117,7 +121,7 @@ def valid_slice(problem, overlap_grid, slice_rectangle):
         print("slice not too big: {}".format(slice_not_too_big))
 
     if enough_tomatoes and enough_mushrooms and slice_not_too_big:
-        does_not_overlap = not does_overlap(overlap_grid, slice_rectangle)
+        does_not_overlap = not does_overlap(grid, slice_rectangle)
         if DEBUG:
             print("does not overlap: {}".format(does_not_overlap))
         if does_not_overlap:
@@ -125,7 +129,8 @@ def valid_slice(problem, overlap_grid, slice_rectangle):
 
     return False
 
-def update_grid(problem, grid, slice, value_to_set = True):
+
+def update_grid(problem, grid, slice, value_to_set=True):
     [r1, c1, r2, c2] = slice
     for r in range(r1, r2+1):
         for c in range(c1, c2+1):
@@ -135,17 +140,19 @@ def update_grid(problem, grid, slice, value_to_set = True):
 
     return grid
 
-def does_overlap(overlap_grid, potential_slice):
+
+def does_overlap(grid, potential_slice):
     [r1, c1, r2, c2] = potential_slice
     if DEBUG:
-        print(overlap_grid)
+        print(grid)
 
     for r in range(r1, r2+1):
         for c in range(c1, c2+1):
-            if overlap_grid[r][c] == True:
+            if grid[r][c] is True:
                 return True
 
     return False
+
 
 def load_file(filename):
     result = {}
@@ -167,7 +174,8 @@ def load_file(filename):
 
     return result
 
-def export(name, data) :
+
+def export(name, data):
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M")
     output_dir = './output/'
     filename = timestamp + '_' + name + '_output_pizza.txt'
@@ -179,14 +187,17 @@ def export(name, data) :
 
         print('file was written in directory: ' + output_dir + filename)
 
-def format(row) :
+
+def format(row):
     line = ''
     for element in row:
         line += str(element) + ' '
     return line + '\n'
 
-def points(slices) :
+
+def points(slices):
     return sum(list(map(lambda slice: len(slice), slices)))
+
 
 if __name__ == "__main__":
     if DEBUG:
@@ -195,8 +206,7 @@ if __name__ == "__main__":
         datasets = ['example', 'small', 'medium', 'big']
 
     for dataset in datasets:
-        
+
         problem = load_file(dataset + '.in')
         solution = solve(problem)
         export(dataset, solution)
-
