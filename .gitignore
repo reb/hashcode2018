@@ -3,3 +3,6 @@
 *.pyc
 pizza/output/
 */.ropeproject/
+
+/venv
+/venv1

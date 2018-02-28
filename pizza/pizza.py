@@ -13,10 +13,10 @@ def solve(problem):
     r1 = 0
     r2 = problem['minimum_ingredient']-1
 
-    while (r2 < rows):
+    while r2 < rows:
         c1 = 0
         c2 = 1
-        while (c2 < columns):
+        while c2 < columns:
             potential_slice = [r1, c1, r2, c2]
             if DEBUG:
                 print("trying potential slice: {}".format(potential_slice))
@@ -36,10 +36,10 @@ def solve(problem):
     c1 = 0
     c2 = problem['minimum_ingredient']-1
 
-    while (c2 < columns):
+    while c2 < columns:
         r1 = 0
         r2 = 1
-        while (r2 < rows):
+        while r2 < rows:
             potential_slice = [r1, c1, r2, c2]
             if DEBUG:
                 print("trying potential slice: {}".format(potential_slice))
