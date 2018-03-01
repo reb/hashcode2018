@@ -6,62 +6,24 @@ DEBUG = False
 def solve(problem):
     result = []
 
-    rides = problem["rides"].copy()
-
-    for _ in range(problem["vehicles"]):
-        ride = rides.pop(0)
-        result.append([ride])
-
-    not_changed = False
+    rides = problem["rides"]
     while(True):
-        if not_changed:
+        if len(rides) < 2:
             break
-        not_changed = True
 
-        for ride_plan in result:
-            if len(rides) == 0:
-                break
-            [last_ride] = ride_plan[-1:]
-            best_connection = closest_connected_ride(last_ride, rides)
-            if DEBUG:
-                msg = "Found that {} connects best to {}"
-                print(msg.format(best_connection, last_ride))
-            if valid_ride_plan(problem, ride_plan + [best_connection]):
-                if DEBUG:
-                    print("Valid connection, adding to ride")
-                rides.remove(best_connection)
-                ride_plan.append(best_connection)
-                not_changed = False
+        ride = rides.pop(0)
+        best_connection = closest_connected_ride(ride, rides)
+        rides.remove(best_connection)
+        result.append([ride["number"], best_connection["number"]])
 
-    print("Missed {} rides".format(len(rides)))
+        if DEBUG:
+            message = "Found that {} connects best to {}"
+            print(message.format(best_connection["number"], ride["number"]))
+
+    if len(rides) == 1:
+        result.append([rides[0]["number"]])
+
     return result
-
-
-def valid_ride_plan(problem, ride_plan):
-    vehicle = {"current_position": {"x": 0, "y": 0}, "rides": []}
-    step = -1
-
-    for ride in ride_plan:
-        step += start_distance(ride, vehicle)
-        if step < ride["start_after"]:
-            step = ride["start_after"]
-        step += ride_distance(ride)
-
-        if step > ride["finish_before"]:
-            return False
-
-    return True
-
-
-def assign_new_position_vehicle(ride):
-    return {"x": ride["finish_row"], "y": ride["finish_column"]}
-
-
-def start_distance(ride, vehicle):
-    return distance(vehicle["current_position"]["x"],
-                    vehicle["current_position"]["y"],
-                    ride["start_column"],
-                    ride["start_row"])
 
 
 def closest_connected_ride(ride_to_check, rides):
@@ -73,23 +35,16 @@ def closest_connected_ride(ride_to_check, rides):
     for ride in rides:
         r2 = ride["start_row"]
         c2 = ride["finish_column"]
-        dist = distance(r1, c1, r2, c2)
+        distance = ride_distance(r1, c1, r2, c2)
 
-        if minimum_distance > dist or minimum_distance == -1:
-            minimum_distance = dist
+        if minimum_distance > distance or minimum_distance == -1:
+            minimum_distance = distance
             minimum_ride = ride
 
     return minimum_ride
 
 
-def ride_distance(ride):
-    return distance(ride["start_row"],
-                    ride["start_column"],
-                    ride["finish_row"],
-                    ride["finish_column"])
-
-
-def distance(start_row, start_column, finish_row, finish_column):
+def ride_distance(start_row, start_column, finish_row, finish_column):
     return abs(start_row - finish_row) + abs(start_column - finish_column)
 
 
@@ -135,7 +90,7 @@ def export(name, data):
 
     with open(output_dir + filename, 'w') as file:
         for rides in data:
-            formatted_rides = " ".join(str(ride["number"]) for ride in rides)
+            formatted_rides = " ".join(str(ride) for ride in rides)
             line = "{} {}\n".format(str(len(rides)), formatted_rides)
             file.write(line)
 
