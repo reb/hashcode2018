@@ -8,6 +8,8 @@ def solve(problem):
 
     rides = problem["rides"].copy()
 
+    rides.sort(key=lambda x: x["start_after"])
+
     for _ in range(problem["vehicles"]):
         ride = rides.pop(0)
         result.append([ride])
