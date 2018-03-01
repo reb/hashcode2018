@@ -9,17 +9,25 @@ def solve(problem):
     for nr_vehicle in range(problem["vehicles"]):
         vehicle = {"current_position": {"x": 0, "y": 0}, "rides": []}
         for (idx, ride) in enumerate(rides):
-            distance_to_start = abs(vehicle["current_position"]["x"] - ride["start_row"]) + vehicle["current_position"]["y"] - \
-                       ride["start_column"]
+            distance_to_start = start_distance(ride, vehicle)
             if distance_to_start > ride["start_after"] + 1:
                 next(rides)
                 continue
             else:
-                vehicle["current_position"] = {"x": ride["finish_row"], "y": ride["finish_column"]}
+                vehicle["current_position"] = assign_new_position_vehicle(ride)
                 vehicle["rides"].append(idx)
         result.append(vehicle["rides"])
 
     return result
+
+
+def assign_new_position_vehicle(ride):
+    return {"x": ride["finish_row"], "y": ride["finish_column"]}
+
+
+def start_distance(ride, vehicle):
+    return abs(vehicle["current_position"]["x"] - ride["start_row"]) + vehicle["current_position"]["y"] - \
+           ride["start_column"]
 
 
 def load_file(filename):
