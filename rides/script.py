@@ -1,10 +1,10 @@
 import datetime
 
-DEBUG = True
+DEBUG = False
 
-def format_row(row):
-    #     TODO to implement
-    pass
+
+def solve(problem):
+    return [[0]]
 
 
 def load_file(filename):
@@ -24,7 +24,8 @@ def load_file(filename):
 
         rides = []
         for line in lines[1:]:
-            [start_row, start_column, finish_row, finish_column, start_after, finish_before] = line.split(' ')
+            [start_row, start_column, finish_row, finish_column,
+             start_after, finish_before] = line.split(' ')
 
             ride = {}
             ride["start_row"] = int(start_row)
@@ -39,16 +40,15 @@ def load_file(filename):
 
     return result
 
+
 def export(name, data):
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M")
     output_dir = './output/'
     filename = timestamp + '_' + name + '.txt'
 
     with open(output_dir + filename, 'w') as file:
-        file.write(str(len(data)) + '\n')
-        for row in data:
-            file.write(format_row(row))
-        # TODO to implement
+        for vehicle, rides in enumerate(data):
+            file.write(str(vehicle) + " ".join(str(ride) for ride in rides))
 
         print('file was written in directory: ' + output_dir + filename)
 
@@ -57,8 +57,10 @@ if __name__ == "__main__":
     if DEBUG:
         datasets = ['a_example']
     else:
-        datasets = ['example', 'small', 'medium', 'big']
+        datasets = ['a_example', 'b_should_be_easy', 'c_no_hurry',
+                    'd_metropolis', 'e_high_bonus']
 
     for dataset in datasets:
         problem = load_file(dataset + '.in')
-        print(problem)
+        solution = solve(problem)
+        export(dataset, solution)
