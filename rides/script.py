@@ -5,20 +5,35 @@ DEBUG = True
 
 def solve(problem):
     result = []
-    rides = iter(problem["rides"])
+    rides = problem["rides"]
     for nr_vehicle in range(problem["vehicles"]):
-        vehicle = {"current_position": {"x": 0, "y": 0}, "rides": []}
+        vehicle = {"nr": nr_vehicle, "current_position": {"x": 0, "y": 0}, "rides": []}
+        nr_steps = 0
         for (idx, ride) in enumerate(rides):
             distance_to_start = start_distance(ride, vehicle)
             if distance_to_start > ride["start_after"] + 1:
-                next(rides)
                 continue
             else:
                 vehicle["current_position"] = assign_new_position_vehicle(ride)
-                vehicle["rides"].append(idx)
+                nr_steps += distance_to_start
+                nr_steps += distance_of_ride(ride)
+                if nr_steps >= problem["steps"]:
+                    continue
+                else:
+                    vehicle["rides"].append(idx)
         result.append(vehicle["rides"])
-
     return result
+
+
+def valid_ride(ride, vehicle, nr_steps):
+    distance_to_start = start_distance(ride, vehicle)
+    if distance_to_start > ride["start_after"] + 1:
+        return False
+    else:
+        vehicle["current_position"] = assign_new_position_vehicle(ride)
+        nr_steps += distance_to_start
+        nr_steps += distance_of_ride(ride)
+        return nr_steps < problem["steps"]
 
 
 def assign_new_position_vehicle(ride):
@@ -29,6 +44,8 @@ def start_distance(ride, vehicle):
     return abs(vehicle["current_position"]["x"] - ride["start_row"]) + vehicle["current_position"]["y"] - \
            ride["start_column"]
 
+def distance_of_ride(ride):
+    return abs(ride["start_row"] - ride["finish_row"]) + abs(ride["start_column"] - ride["finish_column"])
 
 def load_file(filename):
     result = {}
