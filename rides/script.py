@@ -4,7 +4,11 @@ DEBUG = False
 
 
 def solve(problem):
-    return [[0]]
+    result = []
+    for vehicle in range(problem["vehicles"]):
+        result.append([vehicle])
+
+    return result
 
 
 def load_file(filename):
@@ -47,8 +51,10 @@ def export(name, data):
     filename = timestamp + '_' + name + '.txt'
 
     with open(output_dir + filename, 'w') as file:
-        for vehicle, rides in enumerate(data):
-            file.write(str(vehicle) + " ".join(str(ride) for ride in rides))
+        for rides in data:
+            formatted_rides = " ".join(str(ride) for ride in rides)
+            line = "{} {}\n".format(str(len(rides)), formatted_rides)
+            file.write(line)
 
         print('file was written in directory: ' + output_dir + filename)
 
@@ -63,4 +69,6 @@ if __name__ == "__main__":
     for dataset in datasets:
         problem = load_file(dataset + '.in')
         solution = solve(problem)
+        if DEBUG:
+            print(solution)
         export(dataset, solution)
