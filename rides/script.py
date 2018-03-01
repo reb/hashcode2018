@@ -3,10 +3,6 @@ import datetime
 DEBUG = True
 
 
-def optimal(ride):
-    return ride["start_after"] + 1/ride_distance(ride)
-
-
 def solve(problem):
     result = []
 
@@ -50,7 +46,7 @@ def solve(problem):
 
 def valid_ride_plan(problem, ride_plan):
     vehicle = {"row": 0, "column": 0}
-    step = -1
+    step = 0
 
     if DEBUG:
         print("Simulating ride_plan: {}".format(format_ride_plan(ride_plan)))
@@ -69,7 +65,7 @@ def valid_ride_plan(problem, ride_plan):
         if DEBUG:
             print("Ending ride {} at step {}".format(ride["number"], step))
 
-        if step >= ride["finish_before"]:
+        if step > ride["finish_before"]:
             if DEBUG:
                 print("Failed to finish")
             return False
@@ -94,20 +90,22 @@ def closest_connected_ride(ride_to_check, rides):
 
     arrival = ride_to_check["start_after"] + ride_distance(ride_to_check)
     closest_ride = {}
-    minimum = -1
+    minimum = -1000
 
     for ride in rides:
         r2 = ride["start_row"]
         c2 = ride["finish_column"]
         value = distance(r1, c1, r2, c2)
 
-        waiting_penalty = ride["start_after"] - arrival
-        if waiting_penalty < 0:
-            waiting_penalty = 0
+        if arrival < ride["start_after"]:
+            waiting_penalty = ride["start_after"] - arrival
+            value += waiting_penalty
+            value -= problem["bonus"]
 
-        value += waiting_penalty
+        if DEBUG:
+            print("Found value {} for ride {}".format(value, ride["number"]))
 
-        if minimum > value or minimum == -1:
+        if minimum > value or minimum == -1000:
             minimum = value
             closest_ride = ride
 
@@ -183,7 +181,7 @@ def format_ride_plan(ride_plan):
 
 if __name__ == "__main__":
     if DEBUG:
-        datasets = ['a_example']
+        datasets = ['b_should_be_easy']
     else:
         datasets = ['a_example', 'b_should_be_easy', 'c_no_hurry',
                     'd_metropolis', 'e_high_bonus']
