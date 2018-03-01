@@ -3,6 +3,10 @@ import datetime
 DEBUG = True
 
 
+def optimal(ride):
+    return ride["start_after"] + 1/ride_distance(ride)
+
+
 def solve(problem):
     result = []
 
