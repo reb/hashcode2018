@@ -26,8 +26,32 @@ def assign_new_position_vehicle(ride):
 
 
 def start_distance(ride, vehicle):
-    return abs(vehicle["current_position"]["x"] - ride["start_row"]) + vehicle["current_position"]["y"] - \
-           ride["start_column"]
+    return ride_distance(vehicle["current_position"]["x"],
+                         vehicle["current_position"]["y"],
+                         ride["start_column"],
+                         ride["start_row"])
+
+
+def closest_connected_ride(ride_to_check, rides):
+    r1 = ride_to_check["finish_row"]
+    c1 = ride_to_check["finish_column"]
+
+    minimum_ride = {}
+    minimum_distance = -1
+    for ride in rides:
+        r2 = ride["start_row"]
+        c2 = ride["finish_column"]
+        distance = ride_distance(r1, c1, r2, c2)
+
+        if minimum_distance > distance or minimum_distance == -1:
+            minimum_distance = distance
+            minimum_ride = ride
+
+    return minimum_ride
+
+
+def ride_distance(start_row, start_column, finish_row, finish_column):
+    return abs(start_row - finish_row) + abs(start_column - finish_column)
 
 
 def load_file(filename):
@@ -46,11 +70,12 @@ def load_file(filename):
         result["steps"] = int(steps)
 
         rides = []
-        for line in lines[1:]:
+        for ride_number, line in enumerate(lines[1:]):
             [start_row, start_column, finish_row, finish_column,
              start_after, finish_before] = line.split(' ')
 
             ride = {}
+            ride["number"] = ride_number
             ride["start_row"] = int(start_row)
             ride["start_column"] = int(start_column)
             ride["finish_row"] = int(finish_row)
