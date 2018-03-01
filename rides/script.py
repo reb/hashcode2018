@@ -3,12 +3,16 @@ import datetime
 DEBUG = False
 
 
+def optimal(ride):
+    return ride["start_after"] + 1/ride_distance(ride)
+
+
 def solve(problem):
     result = []
 
     rides = problem["rides"].copy()
 
-    rides.sort(key=lambda x: x["start_after"])
+    rides.sort(key=lambda ride: optimal(ride))
 
     for _ in range(problem["vehicles"]):
         ride = rides.pop(0)
