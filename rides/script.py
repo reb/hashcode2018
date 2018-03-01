@@ -68,18 +68,26 @@ def closest_connected_ride(ride_to_check, rides):
     r1 = ride_to_check["finish_row"]
     c1 = ride_to_check["finish_column"]
 
-    minimum_ride = {}
-    minimum_distance = -1
+    arrival = ride_to_check["start_after"] + ride_distance(ride_to_check)
+    closest_ride = {}
+    minimum = -1
+
     for ride in rides:
         r2 = ride["start_row"]
         c2 = ride["finish_column"]
-        dist = distance(r1, c1, r2, c2)
+        value = distance(r1, c1, r2, c2)
 
-        if minimum_distance > dist or minimum_distance == -1:
-            minimum_distance = dist
-            minimum_ride = ride
+        waiting_penalty = ride["start_after"] - arrival
+        if waiting_penalty < 0:
+            waiting_penalty = 0
 
-    return minimum_ride
+        value += waiting_penalty
+
+        if minimum > value or minimum == -1:
+            minimum = value
+            closest_ride = ride
+
+    return closest_ride
 
 
 def ride_distance(ride):
