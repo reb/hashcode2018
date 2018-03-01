@@ -1,12 +1,23 @@
 import datetime
 
-DEBUG = False
+DEBUG = True
 
 
 def solve(problem):
     result = []
-    for vehicle in range(problem["vehicles"]):
-        result.append([vehicle])
+    rides = iter(problem["rides"])
+    for nr_vehicle in range(problem["vehicles"]):
+        vehicle = {"current_position": {"x": 0, "y": 0}, "rides": 0}
+        for ride in rides:
+            distance = abs(vehicle["current_position"]["x"] - ride["start_row"]) + vehicle["current_position"]["y"] - \
+                       ride["start_column"]
+            if ride["start_after"] <= distance:
+                next(rides)
+                continue
+            else:
+                vehicle["current_position"] = {"x": ride["finish_row"], "y": ride["finish_column"]}
+                vehicle["rides"] += 1
+        result.append([nr_vehicle, vehicle["rides"]])
 
     return result
 
