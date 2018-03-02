@@ -10,12 +10,8 @@ def solve(problem):
 
     start = {
         "number": "start",
-        "start": {
-            "row": 0,
-            "column": 0},
-        "finish": {
-            "row": 0,
-            "column": 0},
+        "start": create_location(0, 0),
+        "finish": create_location(0, 0),
         "start_after": 0}
 
     while len(result) < problem["vehicles"]:
