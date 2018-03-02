@@ -4,24 +4,18 @@ DEBUG = False
 
 
 def solve(problem):
-    result = []
+    vehicles = []
 
     rides = problem["rides"].copy()
 
-    start = {
-        "number": "start",
-        "start": new_location(0, 0),
-        "finish": new_location(0, 0),
-        "start_after": 0}
+    starting_rides = connected_rides(problem, new_vehicle(), rides)
 
-    starting_rides = connected_rides(start, rides)
-
-    while len(result) < problem["vehicles"]:
+    while len(vehicles) < problem["vehicles"]:
         closest_to_start = starting_rides.pop(0)
         rides.remove(closest_to_start)
         vehicle = new_vehicle()
         if add_ride(problem, vehicle, closest_to_start):
-            result.append(vehicle)
+            vehicles.append(vehicle)
 
     not_changed = False
     while(True):
@@ -29,11 +23,10 @@ def solve(problem):
             break
         not_changed = True
 
-        for vehicle in result:
+        for vehicle in vehicles:
             if not rides:
                 break
-            [last_ride] = vehicle["plan"][-1:]
-            best_connection = connected_rides(last_ride, rides)[0]
+            best_connection = connected_rides(problem, vehicle, rides)[0]
 
             if add_ride(problem, vehicle, best_connection):
                 if DEBUG:
@@ -41,7 +34,7 @@ def solve(problem):
                 rides.remove(best_connection)
                 not_changed = False
 
-    return result
+    return vehicles
 
 
 def new_vehicle():
@@ -88,15 +81,16 @@ def add_ride(problem, vehicle, ride):
     return True
 
 
-def connected_rides(start_ride, rides):
-    arrival = start_ride["start_after"] + ride_distance(start_ride)
+def connected_rides(problem, vehicle, rides):
     result = []
 
     if DEBUG:
-        print("Looking for a connection from {}".format(start_ride["number"]))
+        print("Looking for a connection from {}".format(vehicle["location"]))
 
     for ride in rides:
-        empty_time = distance(start_ride["finish"], ride["start"])
+        distance_to_start = distance(vehicle["location"], ride["start"])
+        empty_time = distance_to_start
+        arrival = vehicle["step"] + distance_to_start
 
         if arrival < ride["start_after"]:
             waiting_time = ride["start_after"] - arrival
