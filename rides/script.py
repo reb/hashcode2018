@@ -10,18 +10,18 @@ def solve(problem):
 
     start = {
         "number": "start",
-        "start": create_location(0, 0),
-        "finish": create_location(0, 0),
+        "start": new_location(0, 0),
+        "finish": new_location(0, 0),
         "start_after": 0}
 
+    starting_rides = connected_rides(start, rides)
+
     while len(result) < problem["vehicles"]:
-        closest_to_start = connected_rides(start, rides)[0]
+        closest_to_start = starting_rides.pop(0)
         rides.remove(closest_to_start)
-        plan = [closest_to_start]
-        if valid_ride_plan(problem, plan):
-            result.append({
-                "plan": [closest_to_start],
-                "value": ride_distance(closest_to_start)})
+        vehicle = new_vehicle()
+        if add_ride(problem, vehicle, closest_to_start):
+            result.append(vehicle)
 
     not_changed = False
     while(True):
@@ -35,43 +35,55 @@ def solve(problem):
             [last_ride] = vehicle["plan"][-1:]
             best_connection = connected_rides(last_ride, rides)[0]
 
-            if valid_ride_plan(problem, vehicle["plan"] + [best_connection]):
+            if add_ride(problem, vehicle, best_connection):
                 if DEBUG:
                     print("Valid connection, adding to ride")
                 rides.remove(best_connection)
-                vehicle["plan"].append(best_connection)
-                vehicle["value"] += ride_distance(best_connection)
                 not_changed = False
 
-    print("Missed {} rides".format(len(rides)))
     return result
 
 
-def valid_ride_plan(problem, ride_plan):
-    location = create_location(0, 0)
-    step = 0
+def new_vehicle():
+    return {
+        "location": new_location(0, 0),
+        "step": -1,
+        "value": 0,
+        "plan": []
+    }
+
+
+def add_ride(problem, vehicle, ride):
+    step = vehicle["step"]
+    location = vehicle["location"]
+    ride_value = 0
 
     if DEBUG:
-        print("Simulating ride_plan: {}".format(format_ride_plan(ride_plan)))
-    for ride in ride_plan:
+        print("Adding ride {} at step {}".format(ride["number"], step))
 
+    step += distance(ride["start"], location)
+    if step < ride["start_after"]:
+        step = ride["start_after"]
+        # bonus gotten
+        ride_value += problem["bonus"]
+
+    ride_length = ride_distance(ride)
+    ride_value += ride_length
+    step += ride_length
+
+    if DEBUG:
+        print("Ending ride {} at step {}".format(ride["number"], step))
+
+    if step > ride["finish_before"]:
         if DEBUG:
-            print("Starting ride {} at step {}".format(ride["number"], step))
+            print("Failed to finish")
+        return False
 
-        step += distance(ride["start"], location)
-        if step < ride["start_after"]:
-            step = ride["start_after"]
-        step += ride_distance(ride)
-
-        location = ride["finish"]
-
-        if DEBUG:
-            print("Ending ride {} at step {}".format(ride["number"], step))
-
-        if step > ride["finish_before"]:
-            if DEBUG:
-                print("Failed to finish")
-            return False
+    # update vehicle
+    vehicle["step"] = step
+    vehicle["plan"] += [ride]
+    vehicle["location"] = ride["finish"]
+    vehicle["value"] += ride_value
 
     return True
 
@@ -138,8 +150,8 @@ def load_file(filename):
 
             ride = {}
             ride["number"] = ride_number
-            ride["start"] = create_location(int(a), int(b))
-            ride["finish"] = create_location(int(x), int(y))
+            ride["start"] = new_location(int(a), int(b))
+            ride["finish"] = new_location(int(x), int(y))
             ride["start_after"] = int(s)
             ride["finish_before"] = int(f)
             rides.append(ride)
@@ -149,7 +161,7 @@ def load_file(filename):
     return result
 
 
-def create_location(row, column):
+def new_location(row, column):
     return {"row": row, "column": column}
 
 
