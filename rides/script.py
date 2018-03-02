@@ -52,7 +52,7 @@ def solve(problem):
 
 
 def valid_ride_plan(problem, ride_plan):
-    location = {"row": 0, "column": 0}
+    location = create_location(0, 0)
     step = 0
 
     if DEBUG:
@@ -127,35 +127,34 @@ def load_file(filename):
     with open(filename) as f:
         lines = f.read().splitlines()
 
-        [rows, columns, vehicles, rides, bonus, steps] = lines[0].split(' ')
+        [R, C, F, N, B, T] = lines[0].split(' ')
 
-        result["rows"] = int(rows)
-        result["columns"] = int(columns)
-        result["vehicles"] = int(vehicles)
-        result["rides"] = int(rides)
-        result["bonus"] = int(bonus)
-        result["steps"] = int(steps)
+        result["rows"] = int(R)
+        result["columns"] = int(C)
+        result["vehicles"] = int(F)
+        result["ride_amount"] = int(N)
+        result["bonus"] = int(B)
+        result["steps"] = int(T)
 
         rides = []
         for ride_number, line in enumerate(lines[1:]):
-            [start_row, start_column, finish_row, finish_column,
-             start_after, finish_before] = line.split(' ')
+            [a, b, x, y, s, f] = line.split(' ')
 
             ride = {}
             ride["number"] = ride_number
-            ride["start"] = {}
-            ride["start"]["row"] = int(start_row)
-            ride["start"]["column"] = int(start_column)
-            ride["finish"] = {}
-            ride["finish"]["row"] = int(finish_row)
-            ride["finish"]["column"] = int(finish_column)
-            ride["start_after"] = int(start_after)
-            ride["finish_before"] = int(finish_before)
+            ride["start"] = create_location(int(a), int(b))
+            ride["finish"] = create_location(int(x), int(y))
+            ride["start_after"] = int(s)
+            ride["finish_before"] = int(f)
             rides.append(ride)
 
         result["rides"] = rides
 
     return result
+
+
+def create_location(row, column):
+    return {"row": row, "column": column}
 
 
 def export(name, data):
