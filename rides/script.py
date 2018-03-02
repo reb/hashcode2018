@@ -171,6 +171,16 @@ def format_ride_plan(ride_plan):
     return " ".join(str(ride["number"]) for ride in ride_plan)
 
 
+def stats(problem, solution):
+    total_value = 0
+    rides_taken = 0
+    for vehicle in solution:
+        total_value += vehicle["value"]
+        rides_taken += len(vehicle["plan"])
+    print("Total expected value: {}".format(total_value))
+    print("Rides taken: {}/{}".format(rides_taken, problem["ride_amount"]))
+
+
 if __name__ == "__main__":
     if DEBUG:
         datasets = ['a_example']
@@ -183,4 +193,5 @@ if __name__ == "__main__":
         solution = solve(problem)
         if DEBUG:
             print(solution)
+        stats(problem, solution)
         export(dataset, solution)
