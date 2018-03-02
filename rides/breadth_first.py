@@ -51,6 +51,92 @@ def solve(problem):
     return result
 
 
+def breadth_first(problem):
+    rides = problem["rides"].copy()
+
+    result = []
+
+    for _ in range(problem["vehicles"]):
+        vehicle = fill_vehicle(problem, rides)
+        result.append(vehicle)
+        rides = vehicle["remaining_rides"]
+        if not rides:
+            break
+
+    return result
+
+
+def fill_vehicle(problem, rides):
+    result = []
+
+    start = {
+        "number": "start",
+        "start": {
+            "row": 0,
+            "column": 0},
+        "finish": {
+            "row": 0,
+            "column": 0},
+        "start_after": 0}
+
+    for ride in connected_rides(start, rides):
+        plan = [ride]
+
+        if not valid_ride_plan(problem, plan):
+            rides.remove(ride)
+            continue
+
+        remaining_rides = rides.copy()
+        remaining_rides.remove(ride)
+        result.append({
+            "plan": plan,
+            "remaining_rides": remaining_rides,
+            "value": ride_distance(ride)
+        })
+
+        break
+
+    final_result = []
+    while result:
+        expanded_result = []
+
+        for entry in result:
+            [last_ride] = entry["plan"][-1:]
+            remaining_rides = entry["remaining_rides"]
+
+            # expand entry
+            entry_result = []
+            for ride in connected_rides(last_ride, remaining_rides)[:2]:
+                new_plan = entry["plan"] + [ride]
+                if not valid_ride_plan(problem, new_plan):
+                    continue
+                new_remaining_rides = remaining_rides.copy()
+                new_remaining_rides.remove(ride)
+                entry_result.append({
+                    "plan": new_plan,
+                    "remaining_rides": new_remaining_rides,
+                    "value": entry["value"] + ride_distance(ride)
+                })
+
+            if not entry_result:
+                # entry can't be expanded, move to final
+                final_result.append(entry)
+                if DEBUG:
+                    formatted_plan = format_ride_plan(entry["plan"])
+                    value = entry["value"]
+                    message = "Added [{}] to final result with value {}"
+                    print(message.format(formatted_plan, value))
+            else:
+                # add to the expanded result
+                expanded_result += entry_result
+
+        result = expanded_result
+
+    final_result.sort(key=lambda entry: entry["value"], reverse=True)
+
+    return final_result[0]
+
+
 def valid_ride_plan(problem, ride_plan):
     location = {"row": 0, "column": 0}
     step = 0
