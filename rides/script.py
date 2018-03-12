@@ -1,13 +1,14 @@
 import datetime
 import copy
+import sys
 
 DEBUG = False
 
 
 def solve(problem):
-    global max_steps
-    max_steps = problem["steps"]
     vehicles = []
+
+    assigned = 0
 
     rides = problem["rides"].copy()
 
@@ -36,6 +37,11 @@ def solve(problem):
             print("Found {} as best".format(best_connection["number"]))
 
         add_ride(problem, vehicle, best_connection)
+
+        assigned += 1
+        message = "Rides assigned: {}/{}\r"
+        sys.stdout.write(message.format(assigned, problem["ride_amount"]))
+        sys.stdout.flush()
 
         if DEBUG:
             print("Added ride {} to vehicle".format(best_connection["number"]))
@@ -77,38 +83,63 @@ def remove_from_connections(ride, vehicles, rides):
         if index is not None:
             vehicle["lookahead"].pop(index)
 
+        if not vehicle["lookahead"]:
+            add_lookahead(problem, vehicle, rides)
+
 
 def add_connections(problem, vehicle, rides):
+    if DEBUG:
+        print("Adding connections")
     if "lookahead" in vehicle:
-        vehicle["connections"] = vehicle["lookahead"]
+        if vehicle["lookahead"][0]["ride"]:
+            vehicle["connections"] = vehicle["lookahead"]
+        else:
+            vehicle["connections"] = []
     else:
         vehicle["connections"] = connected_rides(problem, vehicle, rides)
+
     add_lookahead(problem, vehicle, rides)
 
 
 def add_lookahead(problem, vehicle, rides):
-    lookahead = new_vehicle()
-    lookahead["step"] = vehicle["step"]
-    lookahead["location"] = vehicle["location"]
-    add_ride(problem, lookahead, vehicle["connections"][0]["ride"])
-    vehicle["lookahead"] = connected_rides(problem, lookahead, rides)
+    if not vehicle["connections"]:
+        return
+    if DEBUG:
+        print("Adding lookahead")
 
-
-def empty_time_and_lookahead(vehicle):
+    # add the first ride from connections to a new vehicle
+    best_vehicle = new_vehicle()
+    best_vehicle["step"] = vehicle["step"]
+    best_vehicle["location"] = vehicle["location"]
     connection = vehicle["connections"][0]
+    add_ride(problem, best_vehicle, connection["ride"])
 
-    result = connection["empty_time"]
-    if vehicle["lookahead"]:
-        result += connection["empty_time"]
-    else:
-        finished_at = vehicle["step"] + ride_distance(connection["ride"])
-        result += (max_steps - finished_at)
-    return result
+    lookahead = connected_rides(problem, best_vehicle, rides)
+    if not lookahead:
+        # if there are no further connections from the best connection
+        # add a penalty for the rest of the remaining time in the simulation
+        utility = problem["steps"] - best_vehicle["step"]
+        lookahead = [{
+            "ride": False,
+            "utility": utility
+        }]
+        if DEBUG:
+            message = "No lookahead from {}, adding {} as a final utility"
+            print(message.format(connection["ride"]["number"], utility))
+
+    vehicle["lookahead"] = lookahead
+
+
+def utility_and_lookahead(vehicle):
+    connection = vehicle["connections"][0]
+    lookahead = vehicle["lookahead"][0]
+
+    return connection["utility"] + lookahead["utility"]
 
 
 def best_vehicle(vehicles):
     connectable = (vehicle for vehicle in vehicles if vehicle["connections"])
-    return min(connectable, key=empty_time_and_lookahead)
+    return min(connectable, key=utility_and_lookahead)
 
 
 def new_vehicle():
@@ -156,15 +187,17 @@ def connected_rides(problem, vehicle, rides):
 
     for ride in rides:
         distance_to_start = distance(vehicle["location"], ride["start"])
-        empty_time = distance_to_start
+        utility = distance_to_start  # penalty for moving to start
         arrival = vehicle["step"] + distance_to_start
 
         if arrival < ride["start_after"]:
             waiting_time = ride["start_after"] - arrival
-            empty_time += waiting_time
-            empty_time -= problem["bonus"] * 1000
+            utility += waiting_time  # penalty for waiting
+            utility -= problem["bonus"] * 1000  # bonus for bonus
 
-        finish = arrival + ride_distance(ride)
+        ride_length = ride_distance(ride)
+        finish = arrival + ride_length
+        utility -= (ride_length / 10)  # bonus for longer rides
 
         if finish > ride["finish_before"]:
             if DEBUG:
@@ -172,17 +205,17 @@ def connected_rides(problem, vehicle, rides):
             continue
 
         result.append({
-            "empty_time": empty_time,
+            "utility": utility,
             "ride": ride})
 
-    result.sort(key=lambda entry: entry["empty_time"])
+    result.sort(key=lambda entry: entry["utility"])
 
     if DEBUG:
-        message = "Found a connection with {} (empty time: {})"
+        message = "Found a connection with {} (utility: {})"
         for entry in result:
             number = entry["ride"]["number"]
-            empty_time = entry["empty_time"]
-            print(message.format(number, empty_time))
+            utility = entry["utility"]
+            print(message.format(number, utility))
 
     return result
 
@@ -253,12 +286,12 @@ def format_ride_plan(ride_plan):
 
 def stats(problem, solution):
     total_value = 0
-    rides_taken = 0
+    assigned = 0
     for vehicle in solution:
         total_value += vehicle["value"]
-        rides_taken += len(vehicle["plan"])
+        assigned += len(vehicle["plan"])
+    print("Rides assigned: {}".format(assigned, problem["ride_amount"]))
     print("Total expected value: {}".format(total_value))
-    print("Rides taken: {}/{}".format(rides_taken, problem["ride_amount"]))
     return total_value
 
 
@@ -271,10 +304,12 @@ if __name__ == "__main__":
 
     total = 0
     for dataset in datasets:
+        print("=={}==".format(dataset))
         problem = load_file(dataset + '.in')
         solution = solve(problem)
         if DEBUG:
             print(solution)
         total += stats(problem, solution)
         export(dataset, solution)
+        print()  # new line
     print("Total expected value of this solution: {}".format(total))
