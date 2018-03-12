@@ -1,40 +1,114 @@
 import datetime
+import copy
 
 DEBUG = False
 
 
 def solve(problem):
+    global max_steps
+    max_steps = problem["steps"]
     vehicles = []
 
     rides = problem["rides"].copy()
 
-    starting_rides = connected_rides(problem, new_vehicle(), rides)
+    vehicle = new_vehicle()
+    add_connections(problem, vehicle, rides)
+
+    vehicles.append(vehicle)
+
+    while(True):
+        if not rides:
+            break
+
+        try:
+            vehicle = best_vehicle(vehicles)
+        except ValueError:
+            break
+
+        best_connection = vehicle["connections"].pop(0)["ride"]
+
+        starting_vehicle = not vehicle["plan"]
+        fleet_not_full = len(vehicles) < problem["vehicles"]
+        if starting_vehicle and fleet_not_full:
+            vehicles.append(copy.deepcopy(vehicle))
+
+        if DEBUG:
+            print("Found {} as best".format(best_connection["number"]))
+
+        add_ride(problem, vehicle, best_connection)
+
+        if DEBUG:
+            print("Added ride {} to vehicle".format(best_connection["number"]))
+        rides.remove(best_connection)
+
+        connections = connected_rides(problem, vehicle, rides)
+        vehicle["connections"] = connections
+        remove_from_connections(best_connection, vehicles, rides)
+
+        if connections:
+            add_lookahead(problem, vehicle, rides)
 
     while len(vehicles) < problem["vehicles"]:
-        closest_to_start = starting_rides.pop(0)
-        rides.remove(closest_to_start)
-        vehicle = new_vehicle()
-        if add_ride(problem, vehicle, closest_to_start):
-            vehicles.append(vehicle)
-
-    not_changed = False
-    while(True):
-        if not_changed:
-            break
-        not_changed = True
-
-        for vehicle in vehicles:
-            if not rides:
-                break
-            best_connection = connected_rides(problem, vehicle, rides)[0]
-
-            if add_ride(problem, vehicle, best_connection):
-                if DEBUG:
-                    print("Valid connection, adding to ride")
-                rides.remove(best_connection)
-                not_changed = False
+        vehicles.append(new_vehicle())
 
     return vehicles
+
+
+def remove_from_connections(ride, vehicles, rides):
+    for vehicle in vehicles:
+        index = None
+        for i, entry in enumerate(vehicle["connections"]):
+            if entry["ride"] == ride:
+                index = i
+                break
+
+        if index is not None:
+            vehicle["connections"].pop(index)
+
+        if index == 0 and vehicle["connections"]:
+            add_lookahead(problem, vehicle, rides)
+
+        index = None
+        for i, entry in enumerate(vehicle["lookahead"]):
+            if entry["ride"] == ride:
+                index = i
+                break
+
+        if index is not None:
+            vehicle["lookahead"].pop(index)
+
+
+def add_connections(problem, vehicle, rides):
+    if "lookahead" in vehicle:
+        vehicle["connections"] = vehicle["lookahead"]
+    else:
+        vehicle["connections"] = connected_rides(problem, vehicle, rides)
+    add_lookahead(problem, vehicle, rides)
+
+
+def add_lookahead(problem, vehicle, rides):
+    lookahead = new_vehicle()
+    lookahead["step"] = vehicle["step"]
+    lookahead["location"] = vehicle["location"]
+    add_ride(problem, lookahead, vehicle["connections"][0]["ride"])
+    vehicle["lookahead"] = connected_rides(problem, lookahead, rides)
+
+
+def empty_time_and_lookahead(vehicle):
+    connection = vehicle["connections"][0]
+
+    result = connection["empty_time"]
+    if vehicle["lookahead"]:
+        result += connection["empty_time"]
+    else:
+        finished_at = vehicle["step"] + ride_distance(connection["ride"])
+        result += (max_steps - finished_at)
+    return result
+
+
+def best_vehicle(vehicles):
+    connectable = (vehicle for vehicle in vehicles if vehicle["connections"])
+    return min(connectable, key=empty_time_and_lookahead)
 
 
 def new_vehicle():
@@ -52,7 +126,7 @@ def add_ride(problem, vehicle, ride):
     ride_value = 0
 
     if DEBUG:
-        print("Adding ride {} at step {}".format(ride["number"], step))
+        print("Starting ride {} at step {}".format(ride["number"], step))
 
     step += distance(ride["start"], location)
     if step < ride["start_after"]:
@@ -67,18 +141,11 @@ def add_ride(problem, vehicle, ride):
     if DEBUG:
         print("Ending ride {} at step {}".format(ride["number"], step))
 
-    if step > ride["finish_before"]:
-        if DEBUG:
-            print("Failed to finish")
-        return False
-
     # update vehicle
     vehicle["step"] = step
     vehicle["plan"] += [ride]
     vehicle["location"] = ride["finish"]
     vehicle["value"] += ride_value
-
-    return True
 
 
 def connected_rides(problem, vehicle, rides):
@@ -95,7 +162,14 @@ def connected_rides(problem, vehicle, rides):
         if arrival < ride["start_after"]:
             waiting_time = ride["start_after"] - arrival
             empty_time += waiting_time
-            empty_time -= problem["bonus"]
+            empty_time -= problem["bonus"] * 1000
+
+        finish = arrival + ride_distance(ride)
+
+        if finish > ride["finish_before"]:
+            if DEBUG:
+                print("Not adding {}, won't finish".format(ride["number"]))
+            continue
 
         result.append({
             "empty_time": empty_time,
@@ -110,7 +184,7 @@ def connected_rides(problem, vehicle, rides):
             empty_time = entry["empty_time"]
             print(message.format(number, empty_time))
 
-    return [entry["ride"] for entry in result]
+    return result
 
 
 def ride_distance(ride):
@@ -185,6 +259,7 @@ def stats(problem, solution):
         rides_taken += len(vehicle["plan"])
     print("Total expected value: {}".format(total_value))
     print("Rides taken: {}/{}".format(rides_taken, problem["ride_amount"]))
+    return total_value
 
 
 if __name__ == "__main__":
@@ -194,10 +269,12 @@ if __name__ == "__main__":
         datasets = ['a_example', 'b_should_be_easy', 'c_no_hurry',
                     'd_metropolis', 'e_high_bonus']
 
+    total = 0
     for dataset in datasets:
         problem = load_file(dataset + '.in')
         solution = solve(problem)
         if DEBUG:
             print(solution)
-        stats(problem, solution)
+        total += stats(problem, solution)
         export(dataset, solution)
+    print("Total expected value of this solution: {}".format(total))
