@@ -1,8 +1,9 @@
-import datetime
-import copy
-import sys
+from datetime import datetime
+from copy import deepcopy
+from sys import stdout
 
 DEBUG = False
+LOOKAHEAD = True
 
 
 def solve(problem):
@@ -31,7 +32,7 @@ def solve(problem):
         starting_vehicle = not vehicle["plan"]
         fleet_not_full = len(vehicles) < problem["vehicles"]
         if starting_vehicle and fleet_not_full:
-            vehicles.append(copy.deepcopy(vehicle))
+            vehicles.append(deepcopy(vehicle))
 
         if DEBUG:
             print("Found {} as best".format(best_connection["number"]))
@@ -40,8 +41,8 @@ def solve(problem):
 
         assigned += 1
         message = "Rides assigned: {}/{}\r"
-        sys.stdout.write(message.format(assigned, problem["ride_amount"]))
-        sys.stdout.flush()
+        stdout.write(message.format(assigned, problem["ride_amount"]))
+        stdout.flush()
 
         if DEBUG:
             print("Added ride {} to vehicle".format(best_connection["number"]))
@@ -54,6 +55,7 @@ def solve(problem):
         if connections:
             add_lookahead(problem, vehicle, rides)
 
+    # pad the vehicles if there are not enough
     while len(vehicles) < problem["vehicles"]:
         vehicles.append(new_vehicle())
 
@@ -70,6 +72,9 @@ def remove_from_connections(ride, vehicles, rides):
 
         if index is not None:
             vehicle["connections"].pop(index)
+
+        if not LOOKAHEAD:
+            continue
 
         if index == 0 and vehicle["connections"]:
             add_lookahead(problem, vehicle, rides)
@@ -102,6 +107,8 @@ def add_connections(problem, vehicle, rides):
 
 
 def add_lookahead(problem, vehicle, rides):
+    if not LOOKAHEAD:
+        return
     if not vehicle["connections"]:
         return
     if DEBUG:
@@ -118,7 +125,8 @@ def add_lookahead(problem, vehicle, rides):
     if not lookahead:
         # if there are no further connections from the best connection
         # add a penalty for the rest of the remaining time in the simulation
-        utility = problem["steps"] - best_vehicle["step"]
+        waiting_time = problem["steps"] - best_vehicle["step"]
+        utility = waiting_time
         lookahead = [{
             "ride": False,
             "utility": utility
@@ -130,7 +138,7 @@ def add_lookahead(problem, vehicle, rides):
     vehicle["lookahead"] = lookahead
 
 
-def utility_and_lookahead(vehicle):
+def connection_and_lookahead(vehicle):
     connection = vehicle["connections"][0]
     lookahead = vehicle["lookahead"][0]
 
@@ -139,7 +147,9 @@ def utility_and_lookahead(vehicle):
 
 def best_vehicle(vehicles):
     connectable = (vehicle for vehicle in vehicles if vehicle["connections"])
-    return min(connectable, key=utility_and_lookahead)
+    if not LOOKAHEAD:
+        return min(connectable, key=lambda v: v["connections"][0]["utility"])
+    return min(connectable, key=connection_and_lookahead)
 
 
 def new_vehicle():
@@ -267,7 +277,7 @@ def new_location(row, column):
 
 
 def export(name, data):
-    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M")
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M")
     output_dir = './output/'
     filename = timestamp + '_' + name + '.txt'
 
@@ -290,7 +300,7 @@ def stats(problem, solution):
     for vehicle in solution:
         total_value += vehicle["value"]
         assigned += len(vehicle["plan"])
-    print("Rides assigned: {}".format(assigned, problem["ride_amount"]))
+    print("Rides assigned: {}/{}".format(assigned, problem["ride_amount"]))
     print("Total expected value: {}".format(total_value))
     return total_value
 
