@@ -160,6 +160,14 @@ fn export(name: String, solution: Vec<Vehicle>) {
     let mut file = File::create(filename)
         .expect("File not found");
 
+    for vehicle in solution {
+        let plan: Vec<String> = vehicle.plan.iter()
+            .map(|ride_number| ride_number.to_string())
+            .collect();
+        let line = format!("{} {}\n", vehicle.plan.len(), plan.join(" "));
+        file.write(line.as_bytes())
+            .expect("Could not write to file");
+    }
 }
 
 fn main() {
