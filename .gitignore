@@ -11,3 +11,5 @@ rides/output/
 
 /target/
 **/*.rs.bk
+rides/target/
+rides/Cargo.lock
