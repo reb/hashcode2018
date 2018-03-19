@@ -28,6 +28,25 @@ struct Location {
     column: i32
 }
 
+#[derive(Debug)]
+struct Vehicle{
+    plan: Vec<usize>
+}
+
+fn solve(problem: Problem) -> Vec<Vehicle> {
+
+    let mut vehicles = Vec::new();
+
+    for vehicle_number in 0..problem.vehicles {
+        let vehicle = Vehicle {
+            plan: vec!(vehicle_number as usize)
+        };
+        vehicles.push(vehicle);
+    }
+
+    vehicles
+}
+
 fn load_file(filename: String) -> Problem {
     let mut file = File::open(filename)
         .expect("File not found");
@@ -135,13 +154,21 @@ fn main() {
     if DEBUG {
         datasets = vec!("a_example".to_string());
     } else {
-        datasets = vec!("a_example".to_string());
+        datasets = ["a_example", "b_should_be_easy", "c_no_hurry",
+                    "d_metropolis", "e_high_bonus"].iter()
+                        .map(|filename| filename.to_string())
+                        .collect();
     }
 
     for dataset in datasets {
+        println!("=={}==", dataset);
         let problem = load_file(format!("{}.in", dataset));
         if DEBUG {
             println!("{:?}", problem);
+        }
+        let solution = solve(problem);
+        if DEBUG {
+            println!("Solution:\n{:?}", solution);
         }
     }
 }
