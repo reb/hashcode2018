@@ -8,3 +8,6 @@ pizza/output/
 /venv1
 .ropeproject/
 rides/output/
+
+/target/
+**/*.rs.bk
