@@ -1,5 +1,8 @@
+extern crate chrono;
+
 use std::fs::File;
 use std::io::prelude::*;
+use chrono::Local;
 
 const DEBUG: bool = true;
 
@@ -29,9 +32,10 @@ struct Location {
 }
 
 #[derive(Debug)]
-struct Vehicle{
+struct Vehicle {
     plan: Vec<usize>
 }
+
 
 fn solve(problem: Problem) -> Vec<Vehicle> {
 
@@ -149,6 +153,15 @@ fn load_file(filename: String) -> Problem {
     }
 }
 
+fn export(name: String, solution: Vec<Vehicle>) {
+    let timestamp = Local::now().format("%Y%m%d-%H%M");
+    let filename = format!("./output/{}_{}.txt", timestamp, name);
+    
+    let mut file = File::create(filename)
+        .expect("File not found");
+
+}
+
 fn main() {
     let datasets: Vec<String>;
     if DEBUG {
@@ -170,5 +183,6 @@ fn main() {
         if DEBUG {
             println!("Solution:\n{:?}", solution);
         }
+        export(dataset, solution);
     }
 }
