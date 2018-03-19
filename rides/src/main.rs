@@ -51,6 +51,14 @@ fn solve(problem: Problem) -> Vec<Vehicle> {
     vehicles
 }
 
+fn ride_distance(ride: &Ride) -> i32 {
+    distance(&ride.start, &ride.finish)
+}
+
+fn distance(start: &Location, finish: &Location) -> i32 {
+    (start.row - finish.row).abs() + (start.column - finish.column).abs()
+}
+
 fn load_file(filename: String) -> Problem {
     let mut file = File::open(filename)
         .expect("File not found");
