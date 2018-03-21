@@ -2,9 +2,10 @@ extern crate chrono;
 
 use std::fs::File;
 use std::io::prelude::*;
+use std::io;
 use chrono::Local;
 
-const DEBUG: bool = true;
+const DEBUG: bool = false;
 
 #[derive(Debug)]
 struct Problem {
@@ -25,30 +26,234 @@ struct Ride {
     finish_before: i32
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Location {
     row: i32,
     column: i32
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Vehicle {
-    plan: Vec<usize>
+    plan: Vec<usize>,
+    step: i32,
+    location: Location,
+    value: i32,
+    connections: Vec<Connection>
 }
 
+impl Vehicle {
+    fn add_ride(&mut self, problem: &Problem, ride_number: usize) {
+        let ride = get_ride(problem, ride_number);
 
-fn solve(problem: Problem) -> Vec<Vehicle> {
+        let mut step = self.step;
+        let mut ride_value = 0;
 
+        if DEBUG {
+            println!("Starting ride {} at step {}", ride_number, step);
+        }
+
+        step += distance(&ride.start, &self.location);
+        if step < ride.start_after {
+            step = ride.start_after;
+            // bonus gotten
+            ride_value += problem.bonus;
+        }
+
+        let ride_length = ride_distance(&ride);
+        ride_value += ride_length;
+        step += ride_length;
+
+        if DEBUG {
+            println!("Ending ride {} at step {}", ride_number, step);
+        }
+
+        self.step = step;
+        self.plan.push(ride_number);
+        copy_location(&mut self.location, &ride.finish);
+        self.value += ride_value;
+    }
+
+    fn add_connections(&mut self, problem: &Problem, unused: &Vec<usize>) {
+        if DEBUG {
+            println!("Adding connections")
+        }
+        self.connections = connected_rides(problem, &self, unused)
+    }
+
+    fn best_connection(&self) -> &Connection {
+        self.connections.get(0)
+            .expect("No best connection, because there are no connections")
+    }
+
+    fn remove_from_connections(&mut self, ride_number: usize) {
+        self.connections.retain(|connection| connection.ride_number != ride_number);
+    }
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone)]
+struct Connection {
+    utility: i32,
+    ride_number: usize
+}
+
+fn solve(problem: &Problem) -> Vec<Vehicle> {
     let mut vehicles = Vec::new();
 
-    for vehicle_number in 0..problem.vehicles {
-        let vehicle = Vehicle {
-            plan: vec!(vehicle_number as usize)
-        };
-        vehicles.push(vehicle);
+    let mut assigned = 0;
+    let mut stdout = io::stdout();
+
+    let mut unused = (0..problem.rides.len()).collect();
+
+    let mut vehicle = Vehicle {
+        plan: Vec::new(),
+        step: -1,
+        location: Location {row: 0, column: 0},
+        value: 0,
+        connections: Vec::new()
+    };
+    vehicle.add_connections(problem, &unused);
+
+    let mut vehicle_to_add: Option<Vehicle> = Some(vehicle);
+    let mut ride_to_remove: Option<usize> = None;
+
+    loop {
+        if vehicle_to_add.is_some() {
+            vehicles.push(vehicle_to_add.unwrap());
+            vehicle_to_add = None;
+        }
+        if ride_to_remove.is_some() {
+            remove_from_connections(ride_to_remove.unwrap(), &mut vehicles);
+        }
+
+        if unused.len() == 0 {
+            break;
+        }
+
+        let fleet_not_full = (vehicles.len() as i32) < problem.vehicles;
+        let optional_vehicle = best_vehicle(&mut vehicles);
+        if optional_vehicle.is_none() {
+            break;
+        }
+        let vehicle = optional_vehicle.unwrap();
+
+        let best_ride_number = vehicle.best_connection().ride_number;
+
+        let starting_vehicle = vehicle.plan.len() == 0;
+        if starting_vehicle && fleet_not_full {
+            vehicle_to_add = Some(vehicle.clone());
+            if DEBUG {
+                println!("Cloning starting vehicle");
+            }
+        }
+
+        if DEBUG {
+            println!("Found {} as best", best_ride_number);
+        }
+
+        vehicle.add_ride(problem, best_ride_number);
+        ride_to_remove = Some(best_ride_number);
+
+        assigned += 1;
+        let message = format!("Rides assigned: {}/{}\r", assigned, problem.ride_amount);
+        stdout.write(message.as_bytes()).expect("Could not write to stdout");
+        stdout.flush().expect("Could not flush stdout");
+        
+        if DEBUG {
+            println!("Added ride {} to vehicle", best_ride_number);
+        }
+        let unused_index = unused.iter()
+            .position(|&ride_number| ride_number == best_ride_number)
+            .expect("Best connection not in unused rides");
+        unused.remove(unused_index);
+
+        vehicle.add_connections(problem, &unused);
+    }
+
+    while (vehicles.len() as i32) < problem.vehicles {
+        vehicles.push(Vehicle {
+            plan: Vec::new(),
+            step: -1,
+            location: Location {row: 0, column: 0},
+            value: 0,
+            connections: Vec::new()
+        });
     }
 
     vehicles
+}
+
+fn remove_from_connections(ride_number: usize, vehicles: &mut Vec<Vehicle>) {
+    vehicles.iter_mut()
+        .for_each(|vehicle| vehicle.remove_from_connections(ride_number));
+}
+
+fn best_vehicle(vehicles: &mut Vec<Vehicle>) -> Option<&mut Vehicle> {
+    vehicles.iter_mut()
+        .filter(|vehicle| !vehicle.connections.is_empty())
+        .fold(None, |optional_min, vehicle| {
+            if let Some(ref min) = optional_min {
+                if min.best_connection().utility > vehicle.best_connection().utility {
+                    return Some(vehicle);
+                }
+            } else {
+                return Some(vehicle);
+            }
+            return optional_min;
+        })
+}
+
+
+fn connected_rides(problem: &Problem, 
+                   vehicle: &Vehicle, 
+                   unused: &Vec<usize>) -> Vec<Connection> {
+
+    let mut connections = Vec::new();
+
+    for &ride_number in unused {
+        let ride = get_ride(problem, ride_number);
+        
+        let distance_to_start = distance(&vehicle.location, &ride.start);
+        let mut utility = distance_to_start;  // penalty for moving to start
+        let arrival = vehicle.step + distance_to_start;
+
+        if arrival < ride.start_after {
+            let waiting_time = ride.start_after - arrival;
+            utility += waiting_time;  // penalty for waiting
+            utility -= problem.bonus * 1000;  // bonus for bonus
+        }
+
+        let ride_length = ride_distance(ride);
+        let finish = arrival + ride_length;
+        utility -= ride_length / 10;  // bonus for longer rides
+
+        if finish > ride.finish_before {
+            if DEBUG {
+                println!("Not adding {}, won't finish", ride_number);
+            }
+            continue
+        }
+        if DEBUG {
+            println!("Found a connection {} (utility: {})", ride_number, utility);
+        }
+
+        connections.push(Connection {
+            ride_number: ride_number,
+            utility: utility
+        });
+    }
+
+    connections.sort();
+    connections
+}
+
+fn get_ride(problem: &Problem, ride_number: usize) -> &Ride {
+    problem.rides.get(ride_number)
+        .expect("Ride number not found")
+}
+
+fn copy_location(target: &mut Location, source: &Location) {
+    target.row = source.row;
+    target.column = source.column;
 }
 
 fn ride_distance(ride: &Ride) -> i32 {
@@ -178,6 +383,17 @@ fn export(name: String, solution: Vec<Vehicle>) {
     }
 }
 
+fn stats(problem: &Problem, solution: &Vec<Vehicle>) -> i32 {
+    let (total_value, assigned) = solution.iter()
+        .fold((0, 0), |(total_value, assigned), vehicle| {
+            return (total_value + vehicle.value, assigned + vehicle.plan.len());
+        });
+
+    println!("Rides assigned: {}/{}    ", assigned, problem.ride_amount);
+    println!("Total expected value: {}", total_value);
+    total_value
+}
+
 fn main() {
     let datasets: Vec<String>;
     if DEBUG {
@@ -189,16 +405,20 @@ fn main() {
                         .collect();
     }
 
+    let mut total = 0;
     for dataset in datasets {
         println!("=={}==", dataset);
         let problem = load_file(format!("{}.in", dataset));
         if DEBUG {
             println!("{:?}", problem);
         }
-        let solution = solve(problem);
+        let solution = solve(&problem);
+        total += stats(&problem, &solution);
         if DEBUG {
             println!("Solution:\n{:?}", solution);
         }
+        println!("");  // new line
         export(dataset, solution);
     }
+    println!("Total expected value of this solution: {}", total);
 }
