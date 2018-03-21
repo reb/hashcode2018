@@ -1,9 +1,11 @@
 extern crate chrono;
+extern crate rayon;
 
 use std::fs::File;
 use std::io::prelude::*;
 use std::io;
 use chrono::Local;
+use rayon::prelude::*;
 
 const DEBUG: bool = false;
 
@@ -183,7 +185,7 @@ fn solve(problem: &Problem) -> Vec<Vehicle> {
 }
 
 fn remove_from_connections(ride_number: usize, vehicles: &mut Vec<Vehicle>) {
-    vehicles.iter_mut()
+    vehicles.par_iter_mut()
         .for_each(|vehicle| vehicle.remove_from_connections(ride_number));
 }
 
@@ -207,42 +209,43 @@ fn connected_rides(problem: &Problem,
                    vehicle: &Vehicle, 
                    unused: &Vec<usize>) -> Vec<Connection> {
 
-    let mut connections = Vec::new();
+    let mut connections: Vec<Connection> = unused.par_iter()
+        .map(|&ride_number| {
+            let ride = get_ride(problem, ride_number);
+            
+            let distance_to_start = distance(&vehicle.location, &ride.start);
+            let mut utility = distance_to_start;  // penalty for moving to start
+            let arrival = vehicle.step + distance_to_start;
 
-    for &ride_number in unused {
-        let ride = get_ride(problem, ride_number);
-        
-        let distance_to_start = distance(&vehicle.location, &ride.start);
-        let mut utility = distance_to_start;  // penalty for moving to start
-        let arrival = vehicle.step + distance_to_start;
-
-        if arrival < ride.start_after {
-            let waiting_time = ride.start_after - arrival;
-            utility += waiting_time;  // penalty for waiting
-            utility -= problem.bonus * 1000;  // bonus for bonus
-        }
-
-        let ride_length = ride_distance(ride);
-        let finish = arrival + ride_length;
-        utility -= ride_length / 10;  // bonus for longer rides
-
-        if finish > ride.finish_before {
-            if DEBUG {
-                println!("Not adding {}, won't finish", ride_number);
+            if arrival < ride.start_after {
+                let waiting_time = ride.start_after - arrival;
+                utility += waiting_time;  // penalty for waiting
+                utility -= problem.bonus * 1000;  // bonus for bonus
             }
-            continue
-        }
-        if DEBUG {
-            println!("Found a connection {} (utility: {})", ride_number, utility);
-        }
 
-        connections.push(Connection {
-            ride_number: ride_number,
-            utility: utility
-        });
-    }
+            let ride_length = ride_distance(ride);
+            let finish = arrival + ride_length;
+            utility -= ride_length / 10;  // bonus for longer rides
 
-    connections.sort();
+            if finish > ride.finish_before {
+                if DEBUG {
+                    println!("Not adding {}, won't finish", ride_number);
+                }
+                return None;
+            }
+            if DEBUG {
+                println!("Found a connection {} (utility: {})", ride_number, utility);
+            }
+
+            return Some(Connection {
+                ride_number: ride_number,
+                utility: utility
+            });
+        })
+        .filter_map(|connection| connection)
+        .collect();
+
+    connections.par_sort_unstable();
     connections
 }
 
@@ -395,6 +398,7 @@ fn stats(problem: &Problem, solution: &Vec<Vehicle>) -> i32 {
 }
 
 fn main() {
+    let start = std::time::Instant::now();
     let datasets: Vec<String>;
     if DEBUG {
         datasets = vec!("a_example".to_string());
@@ -421,4 +425,8 @@ fn main() {
         export(dataset, solution);
     }
     println!("Total expected value of this solution: {}", total);
+
+    let elapsed = start.elapsed();
+    let seconds = (elapsed.as_secs() as f64) + (elapsed.subsec_nanos() as f64 / 1_000_000_000.0);
+    println!("Took: {} seconds", seconds);
 }
