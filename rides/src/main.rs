@@ -4,6 +4,7 @@ extern crate rayon;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io;
+use std::cmp::Ordering;
 use chrono::Local;
 use rayon::prelude::*;
 
@@ -22,6 +23,7 @@ struct Problem {
 
 #[derive(Debug)]
 struct Ride {
+    number: usize,
     start: Location,
     finish: Location,
     start_after: i32,
@@ -35,23 +37,21 @@ struct Location {
 }
 
 #[derive(Debug, Clone)]
-struct Vehicle {
-    plan: Vec<usize>,
+struct Vehicle<'a> {
+    plan: Vec<&'a Ride>,
     step: i32,
     location: Location,
     value: i32,
-    connections: Vec<Connection>
+    connections: Vec<Connection<'a>>
 }
 
-impl Vehicle {
-    fn add_ride(&mut self, problem: &Problem, ride_number: usize) {
-        let ride = get_ride(problem, ride_number);
-
+impl<'a> Vehicle<'a> {
+    fn add_ride(&mut self, problem: &Problem, ride: &'a Ride) {
         let mut step = self.step;
         let mut ride_value = 0;
 
         if DEBUG {
-            println!("Starting ride {} at step {}", ride_number, step);
+            println!("Starting ride {} at step {}", ride.number, step);
         }
 
         step += distance(&ride.start, &self.location);
@@ -66,36 +66,56 @@ impl Vehicle {
         step += ride_length;
 
         if DEBUG {
-            println!("Ending ride {} at step {}", ride_number, step);
+            println!("Ending ride {} at step {}", ride.number, step);
         }
 
         self.step = step;
-        self.plan.push(ride_number);
+        self.plan.push(ride);
         copy_location(&mut self.location, &ride.finish);
         self.value += ride_value;
     }
 
-    fn add_connections(&mut self, problem: &Problem, unused: &Vec<usize>) {
+    fn add_connections(&mut self, problem: &Problem, unused: &Vec<&'a Ride>) {
         if DEBUG {
             println!("Adding connections")
         }
         self.connections = connected_rides(problem, &self, unused)
     }
 
-    fn best_connection(&self) -> &Connection {
+    fn best_connection(&self) -> &Connection<'a> {
         self.connections.get(0)
             .expect("No best connection, because there are no connections")
     }
 
-    fn remove_from_connections(&mut self, ride_number: usize) {
-        self.connections.retain(|connection| connection.ride_number != ride_number);
+    fn remove_from_connections(&mut self, ride: &'a Ride) {
+        self.connections.retain(|connection| connection.ride.number != ride.number);
     }
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone)]
-struct Connection {
+#[derive(Debug, Clone)]
+struct Connection<'a> {
     utility: i32,
-    ride_number: usize
+    ride: &'a Ride
+}
+
+impl<'a> PartialEq for Connection<'a> {
+    fn eq(&self , other: &Connection) -> bool {
+        self.utility.eq(&other.utility)
+    }
+}
+
+impl<'a> Eq for Connection<'a> {}
+
+impl<'a> PartialOrd for Connection<'a> {
+    fn partial_cmp(&self, other: &Connection) -> Option<Ordering> {
+        self.utility.partial_cmp(&other.utility)
+    }
+}
+
+impl<'a> Ord for Connection<'a> {
+    fn cmp(&self, other: &Connection) -> Ordering {
+        self.utility.cmp(&other.utility)
+    }
 }
 
 fn solve(problem: &Problem) -> Vec<Vehicle> {
@@ -104,7 +124,7 @@ fn solve(problem: &Problem) -> Vec<Vehicle> {
     let mut assigned = 0;
     let mut stdout = io::stdout();
 
-    let mut unused = (0..problem.rides.len()).collect();
+    let mut unused = problem.rides.iter().collect();
 
     let mut vehicle = Vehicle {
         plan: Vec::new(),
@@ -116,7 +136,7 @@ fn solve(problem: &Problem) -> Vec<Vehicle> {
     vehicle.add_connections(problem, &unused);
 
     let mut vehicle_to_add: Option<Vehicle> = Some(vehicle);
-    let mut ride_to_remove: Option<usize> = None;
+    let mut ride_to_remove: Option<&Ride> = None;
 
     loop {
         if vehicle_to_add.is_some() {
@@ -138,7 +158,7 @@ fn solve(problem: &Problem) -> Vec<Vehicle> {
         }
         let vehicle = optional_vehicle.unwrap();
 
-        let best_ride_number = vehicle.best_connection().ride_number;
+        let best_ride = &*vehicle.best_connection().ride;
 
         let starting_vehicle = vehicle.plan.len() == 0;
         if starting_vehicle && fleet_not_full {
@@ -149,11 +169,11 @@ fn solve(problem: &Problem) -> Vec<Vehicle> {
         }
 
         if DEBUG {
-            println!("Found {} as best", best_ride_number);
+            println!("Found {} as best", best_ride.number);
         }
 
-        vehicle.add_ride(problem, best_ride_number);
-        ride_to_remove = Some(best_ride_number);
+        vehicle.add_ride(problem, best_ride);
+        ride_to_remove = Some(best_ride);
 
         assigned += 1;
         let message = format!("Rides assigned: {}/{}\r", assigned, problem.ride_amount);
@@ -161,10 +181,10 @@ fn solve(problem: &Problem) -> Vec<Vehicle> {
         stdout.flush().expect("Could not flush stdout");
         
         if DEBUG {
-            println!("Added ride {} to vehicle", best_ride_number);
+            println!("Added ride {} to vehicle", best_ride.number);
         }
         let unused_index = unused.iter()
-            .position(|&ride_number| ride_number == best_ride_number)
+            .position(|&ride| ride.number == best_ride.number)
             .expect("Best connection not in unused rides");
         unused.remove(unused_index);
 
@@ -184,12 +204,12 @@ fn solve(problem: &Problem) -> Vec<Vehicle> {
     vehicles
 }
 
-fn remove_from_connections(ride_number: usize, vehicles: &mut Vec<Vehicle>) {
-    vehicles.par_iter_mut()
-        .for_each(|vehicle| vehicle.remove_from_connections(ride_number));
+fn remove_from_connections<'a>(ride: &'a Ride, vehicles: &mut Vec<Vehicle<'a>>) {
+    vehicles.iter_mut()
+        .for_each(|vehicle| vehicle.remove_from_connections(ride));
 }
 
-fn best_vehicle(vehicles: &mut Vec<Vehicle>) -> Option<&mut Vehicle> {
+fn best_vehicle<'a, 'b>(vehicles: &'b mut Vec<Vehicle<'a>>) -> Option<&'b mut Vehicle<'a>> {
     vehicles.iter_mut()
         .filter(|vehicle| !vehicle.connections.is_empty())
         .fold(None, |optional_min, vehicle| {
@@ -205,14 +225,12 @@ fn best_vehicle(vehicles: &mut Vec<Vehicle>) -> Option<&mut Vehicle> {
 }
 
 
-fn connected_rides(problem: &Problem, 
+fn connected_rides<'a>(problem: &Problem, 
                    vehicle: &Vehicle, 
-                   unused: &Vec<usize>) -> Vec<Connection> {
+                   unused: &Vec<&'a Ride>) -> Vec<Connection<'a>> {
 
-    let mut connections: Vec<Connection> = unused.par_iter()
-        .map(|&ride_number| {
-            let ride = get_ride(problem, ride_number);
-            
+    let mut connections: Vec<Connection> = unused.iter()
+        .map(|&ride| {
             let distance_to_start = distance(&vehicle.location, &ride.start);
             let mut utility = distance_to_start;  // penalty for moving to start
             let arrival = vehicle.step + distance_to_start;
@@ -229,29 +247,24 @@ fn connected_rides(problem: &Problem,
 
             if finish > ride.finish_before {
                 if DEBUG {
-                    println!("Not adding {}, won't finish", ride_number);
+                    println!("Not adding {}, won't finish", ride.number);
                 }
                 return None;
             }
             if DEBUG {
-                println!("Found a connection {} (utility: {})", ride_number, utility);
+                println!("Found a connection {} (utility: {})", ride.number, utility);
             }
 
             return Some(Connection {
-                ride_number: ride_number,
+                ride: &ride,
                 utility: utility
             });
         })
         .filter_map(|connection| connection)
         .collect();
 
-    connections.par_sort_unstable();
+    connections.sort();
     connections
-}
-
-fn get_ride(problem: &Problem, ride_number: usize) -> &Ride {
-    problem.rides.get(ride_number)
-        .expect("Ride number not found")
 }
 
 fn copy_location(target: &mut Location, source: &Location) {
@@ -311,7 +324,8 @@ fn load_file(filename: String) -> Problem {
         .expect("Steps is not a number");
 
     let rides = lines
-        .map(|line| {
+        .enumerate()
+        .map(|(line_number, line)| {
             let mut split_line = line.split_whitespace();
 
             let start_row = split_line.next()
@@ -350,6 +364,7 @@ fn load_file(filename: String) -> Problem {
                 .expect("Finish before not a number");
 
             Ride {
+                number: line_number,
                 start: start,
                 finish: finish,
                 start_after: start_after,
@@ -378,7 +393,7 @@ fn export(name: String, solution: Vec<Vehicle>) {
 
     for vehicle in solution {
         let plan: Vec<String> = vehicle.plan.iter()
-            .map(|ride_number| ride_number.to_string())
+            .map(|&ride| ride.number.to_string())
             .collect();
         let line = format!("{} {}\n", vehicle.plan.len(), plan.join(" "));
         file.write(line.as_bytes())
