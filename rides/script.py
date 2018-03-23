@@ -3,7 +3,7 @@ from copy import deepcopy
 from sys import stdout
 
 DEBUG = False
-LOOKAHEAD = True
+LOOKAHEAD = False
 
 
 def solve(problem):
